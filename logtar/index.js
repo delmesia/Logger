@@ -125,6 +125,7 @@ class RollingTimeOption {
 }
 
 class RollingConfig {
+
     #time_threshold = RollingTimeOption.Hourly;
     #size_threshold = RollingSizeOption.FiveMB;
 
@@ -153,19 +154,26 @@ class RollingConfig {
         return this;
     }
     static from_json(json) {
-        let rolling_config = new RollingConfig();
+        let log_config = new LogConfig();
 
         Object.keys(json).forEach((key) => {
             switch (key) {
-                case "size_threshold":
-                    rolling_config = rolling_config.with_size_threshold(json[key]);
+                case "level":
+                    log_config = log_config.with_log_level(json[key]);
                     break;
-                case "time_threshold":
-                    rolling_config = rolling_config.with_time_threshold(json[key]);
+                case "rolling_config":
+                    log_config = log_config.with_rolling_config(json[key]);
+                    break;
+                case "file_prefix":
+                    log_config = log_config.with_file_prefix(json[key]);
                     break;
             }
         });
+
+        return log_config;
     }
 }
+
+const config = LogConfig.with_defaults().with_log_level(LogLevel.Critical);
 
 
