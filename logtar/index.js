@@ -24,14 +24,14 @@ class Logger {
         //Using the `LogConfig` assert method, we'll supply the clint/user given parameter and check if it's valid.
         LogConfig.assert(log_config);
         //if the assertion is valid/true, set the value of the private field config to log_config
-        this.#config = log.config;
+        this.#config = log_config;
     }
 }
 
 class LogConfig {
 
     #level = LogLevel.Info;
-    #rolling_config;
+    #rolling_config = RollingConfig.Hourly;
     #file_prefix = "Logtar_";
 
     static assert(log_config) {
@@ -43,9 +43,129 @@ class LogConfig {
         }
     }
 
+    static with_defaults() {
+        return new LogConfig();
+    }
+    /**
+     * @param {LogLevel} log_level The log level to be set.
+     * @returns {LogConfig} The current instance of LogConfig.
+     */
+    with_log_level(log_level) {
+        LogLevel.assert(log_level);
+        this.#level = log_level;
+        return this;
+    }
+
+    with_rolling_config(rolling_config) {
+        this.#rolling_config = RollingConfig.from_json(config);
+        return this;
+    }
+
+    /** 
+     * @param {string} file_prefix The file prefix to be set.
+     * @returns {LogConfig} The current instance of LogConfig.
+     * @throws {Error} If the file_prefix is not a string.
+     */
+
+    with_file_prefix(file_prefix) {
+        if (typeof file_prefix != "string") {
+            throw new Error(`file_prefix must be a string. Unsupported param
+            ${JSON.stringify(file_prefix)}`);
+        }
+        this.#file_prefix = file_prefix;
+        return this;
+    }
+
     get level() { return this.#level; };
     get rolling_config() { return this.#rolling_config; };
     get file_prefix() { return this.#file_prefix; };
 }
 
-const logger = new Logger(LogLevel.Warn);
+class RollingSizeOption {
+
+    static OneKB = 1024;
+    static FiveKB = 5 * 1024;
+    static TenKB = 10 * 1024;
+    static TwentyKB = 20 * 1024;
+    static FiftyKB = 50 * 1024;
+    static HundredKB = 100 * 1024;
+
+    static HalfMB = 512 * 1024;
+    static OneMB = 1024 * 1024;
+    static FiveMB = 5 * 1024 * 1024;
+    static TenMB = 10 * 1024 * 1024;
+    static TwentyMB = 20 * 1024 * 1024;
+    static FiftyMB = 50 * 1024 * 1024;
+    static HundredMB = 100 * 1024 * 1024;
+
+    static assert(size_threshold) {
+        if (typeof size_threshold != "number" || size_threshold < RollingSizeOption.OneKB) {
+            throw new Error(`
+            size_threshold must be at-least 1 KB. Unspported param
+            ${JSON.stringify(size_threshold)}`);
+        }
+    }
+
+}
+
+class RollingTimeOption {
+    static Minutely = 60; // Every 60 seconds
+    static Hourly = 60 * this.Minutely;
+    static Daily = 24 * this.Hourly;
+    static Weekly = 7 * this.Daily;
+    static Monthly = 30 * this.Daily;
+    static Yearly = 12 * this.Monthly;
+
+    static assert(time_option) {
+        if (![this.Minutely, this.Hourly, this.Daily, this.Weekly, this.Monthly, this.Yearly].includes(time_option)) {
+            throw new Error(`time_option must be an instance of RollingConfig. Unspported param
+            ${JSON.stringify(time_option)}`);
+        }
+    }
+}
+
+class RollingConfig {
+    #time_threshold = RollingTimeOption.Hourly;
+    #size_threshold = RollingSizeOption.FiveMB;
+
+    static assert(rolling_config) {
+        if (!(rolling_config instanceof RollingConfig)) {
+            throw new Error(
+                `rolling_config is not an instance of RollingConfig. Unsupported param
+                ${JSON.stringify(rolling_config)}`
+            );
+        }
+    }
+
+    static with_defaults() {
+        return RollingConfig();
+    }
+
+    with_size_threshold(size_threshold) {
+        RollingSizeOption.assert(size_threshold);
+        this.#size_threshold = size_threshold;
+        return this;
+    }
+
+    with_time_threshold(time_threshold) {
+        RollingTimeOption.assert(time_threshold);
+        this.#time_threshold = time_threshold;
+        return this;
+    }
+    static from_json(json) {
+        let rolling_config = new RollingConfig();
+
+        Object.keys(json).forEach((key) => {
+            switch (key) {
+                case "size_threshold":
+                    rolling_config = rolling_config.with_size_threshold(json[key]);
+                    break;
+                case "time_threshold":
+                    rolling_config = rolling_config.with_time_threshold(json[key]);
+                    break;
+            }
+        });
+    }
+}
+
+
